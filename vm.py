@@ -1,5 +1,56 @@
 # 初始化
-import sys
+import re, sys
+
+# 變數
+class Value:
+    def __init__(self, data, flag = None):
+        if flag is not None:
+            try:
+                data = int(data)
+            except:
+                try:
+                    data = float(data)
+                except:
+                    if data == "None":
+                        data = None
+                    elif data == "True":
+                        data = True
+                    elif data == "False":
+                        data = False
+                    elif flag == "PUSH":
+                        data = data.strip(data[0])
+
+        self.data = data
+
+    def __add__(self, other):
+        assert isinstance(other, Value)
+        out = Value(self.data + other.data)
+        return out
+
+    def __sub__(self, other):
+        assert isinstance(other, Value)
+        out = Value(self.data - other.data)
+        return out
+
+    def __mul__(self, other):
+        assert isinstance(other, Value)
+        out = Value(self.data * other.data)
+        return out
+
+    def __truediv__(self, other):
+        assert isinstance(other, Value)
+        out = Value(self.data / other.data)
+        return out
+
+    def __lt__(self, other):
+        assert isinstance(other, Value)
+        out = Value(self.data < other.data)
+        return out
+
+    def __gt__(self, other):
+        assert isinstance(other, Value)
+        out = Value(self.data > other.data)
+        return out
 
 # 虛擬機
 class StackVM:
@@ -10,16 +61,11 @@ class StackVM:
 
     def load(self, f):
         for i in f:
-            i = i.split(",")
+            i = re.findall("\(.+?\)|\'.+?\'|\".+?\"|\w+", i)
 
             for j in i:
-                j = j.strip()
-
-                if j == "":
-                    continue
-
-                if j.isnumeric():
-                    j = int(j)
+                if len(self.code) > 0 and self.code[-1] == "PUSH":
+                    j = Value(j, "PUSH")
 
                 self.code.append(j)
 
@@ -36,6 +82,8 @@ class StackVM:
             if op == "PUSH":
                 pc += 1
                 self.stack.append(self.code[pc])
+            elif op == "POP":
+                self.stack.pop()
             elif op == "STORE":
                 pc += 1
                 name = self.code[pc]
@@ -46,8 +94,11 @@ class StackVM:
                 name = self.code[pc]
                 value = self.variable[br][name]
                 self.stack.append(value)
+            elif op == "INPUT":
+                data = input(self.stack.pop().data)
+                self.stack.append(Value(data, "INPUT"))
             elif op == "PRINT":
-                print(self.stack.pop())
+                print(str(self.stack.pop().data).replace(r"\n", "\n"), end = "")
 
             # 簡易運算
             elif op == "ADD":
@@ -82,7 +133,7 @@ class StackVM:
                 pc = self.code.index(f"({self.code[pc + 1]})") - 1
             elif op == "JZ":
                 pc += 1
-                if not self.stack.pop():
+                if not self.stack.pop().data:
                     pc = self.code.index(f"({self.code[pc]})") - 1
 
             # 函式指令
@@ -95,8 +146,8 @@ class StackVM:
                 self.stack.append(pc)
                 self.variable.append({})
                 pc = self.code.index(f"({self.code[pc]})") - 1
-            elif op == "RETURN":
-                pc = self.variable[br]["pc"]
+            elif op == "RETURN" or op == "END":
+                pc = self.variable[br]["ra"]
                 self.variable.pop()
                 br -= 1
 
@@ -116,7 +167,7 @@ if __name__ == "__main__":
         sys.exit()
 
     # 讀取來源檔
-    f = open(sys.argv[1], "r")
+    f = open(sys.argv[1], "r", encoding = "utf-8")
 
     # 執行虛擬機
     vm = StackVM()

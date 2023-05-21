@@ -1,0 +1,15 @@
+function hanoi(n, A, B, C)
+{
+    while (n < 2)
+    {
+        print(A, "->", C);
+        return;
+    }
+
+    hanoi(n - 1, A, C, B);
+    hanoi(1, A, B, C);
+    hanoi(n - 1, B, A, C);
+}
+
+num = input("Please enter the number: ");
+hanoi(num, 'A', 'B', 'C');

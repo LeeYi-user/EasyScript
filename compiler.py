@@ -1,7 +1,10 @@
 # 詞彙語法描述
 """
 OP = '+' | '-' | '*' | '/' | '<' | '>'
-VALUE = [0-9]+
+NUMBER = [0-9]+ ('.' [0-9]+)?
+NONE = None
+BOOL = 'True' | 'False'
+STRING = '\'' .* '\'' | '\"' .* '\"'
 NAME = [a-zA-Z_][a-zA-Z0-9_]*
 """
 
@@ -10,18 +13,19 @@ NAME = [a-zA-Z_][a-zA-Z0-9_]*
 C = E (',' C)?
 D = NAME (',' D)?
 E = F (OP E)*
-F = '(' E ')' | VALUE | NAME | NAME '(' C? ')'
+F = '(' E ')' | NUMBER | NONE | BOOL | STRING | 'input' '(' E ')' | NAME | NAME '(' C? ')'
 """
 
 # 包含 while 的語法
 """
-STMT = ASSIGN | WHILE | BLOCK | PRINT | FUNCTION | RETURN
+STMT = ASSIGN | WHILE | BLOCK | PRINT | FUNCTION | RETURN | CALL
 ASSIGN = NAME '=' E ';'
 WHILE = 'while' '(' E ')' STMT
 BLOCK = '{' STMT* '}'
-PRINT = 'print' E ';'
+PRINT = 'print' '(' C ')' ';'
 FUNCTION = 'function' NAME '(' D? ')' BLOCK
-RETURN = 'return' E ';'
+RETURN = 'return' E? ';'
+CALL = NAME '(' C? ')' ';'
 """
 
 # 初始化
@@ -63,6 +67,20 @@ def skip(set):
     else:
         raise Exception(f"skip({set}) got {next()} fail!")
 
+def isValue(str):
+    try:
+        int(str)
+        return True
+    except:
+        try:
+            float(str)
+            return True
+        except:
+            if str == "None" or str == "True" or str == "False" or str[0] == "\'" or str[0] == "\"":
+                return True
+            else:
+                return False
+
 # EBNF 函式
 OP = {
     "+": "ADD",
@@ -73,23 +91,29 @@ OP = {
     ">": "GT"
 }
 
-def C():
+def C(flag):
     if not isNext(")"):
         i = E()
         f.write(f"LOAD, t{i}\n")
 
+        if flag:
+            f.write("PRINT\nPUSH, \" \"\nPRINT\n")
+
         if isNext(","):
             skip(",")
-            C()
+            C(flag)
+        elif flag:
+            f.write("PUSH, \"\\n\"\nPRINT\n")
 
 def D():
     if not isNext(")"):
         i = next()
-        f.write(f"STORE, {i}\n")
 
         if isNext(","):
             skip(",")
             D()
+
+        f.write(f"STORE, {i}\n")
 
 def F():
     if isNext("("):
@@ -100,12 +124,16 @@ def F():
         i = nextTemp()
         item = next()
 
-        if item.isnumeric():
+        if isValue(item):
             f.write(f"PUSH, {item}\nSTORE, t{i}\n")
+        elif item == "input":
+            skip("(")
+            f.write(f"LOAD, t{E()}\nINPUT\nSTORE, t{i}\n")
+            skip(")")
         else:
             if isNext("("):
                 skip("(")
-                C()
+                C(False)
                 skip(")")
                 f.write(f"CALL, {item}\nSTORE, t{i}\n")
             else:
@@ -125,8 +153,7 @@ def E():
 
     return i1
 
-def ASSIGN():
-    name = next()
+def ASSIGN(name):
     skip("=")
     e = E()
     skip(";")
@@ -153,25 +180,37 @@ def BLOCK():
 
 def PRINT():
     skip("print")
-    e = E()
+    skip("(")
+    C(True)
+    skip(")")
     skip(";")
-    f.write(f"LOAD, t{e}\nPRINT\n")
 
 def FUNCTION():
     skip("function")
     name = next()
-    f.write(f"DEF, ({name})\nSTORE, pc\n")
+    f.write(f"DEF, ({name})\nSTORE, ra\n")
     skip("(")
     D()
     skip(")")
     BLOCK()
-    f.write("END\n")
+    f.write("PUSH, None\nEND\n")
 
 def RETURN():
     skip("return")
-    e = E()
+
+    if isNext(";"):
+        f.write(f"PUSH, None\nRETURN\n")
+    else:
+        f.write(f"LOAD, t{E()}\nRETURN\n")
+
     skip(";")
-    f.write(f"LOAD, t{e}\nRETURN\n")
+
+def CALL(name):
+    skip("(")
+    C(False)
+    skip(")")
+    skip(";")
+    f.write(f"CALL, {name}\nPOP\n")
 
 def STMT():
     if isNext("while"):
@@ -185,7 +224,12 @@ def STMT():
     elif isNext("return"):
         RETURN()
     else:
-        ASSIGN()
+        name = next()
+
+        if isNext("("):
+            CALL(name)
+        else:
+            ASSIGN(name)
 
 def STMTS():
     while tokenIdx < len(tokens) and not isNext("}"):
@@ -199,12 +243,12 @@ if __name__ == "__main__":
         sys.exit()
 
     # 讀取來源檔
-    f = open(sys.argv[1], "r")
-    tokens = re.findall("\w+|[\+\-\*\/\<\>\=\,\(\)\{\}\;]", "".join(f.readlines()))
+    f = open(sys.argv[1], "r", encoding = "utf-8")
+    tokens = re.findall("\d+\.\d+|\'.+?\'|\".+?\"|\w+|[\+\-\*\/\<\>\=\,\(\)\{\}\;]", "".join(f.readlines()))
     f.close()
 
     # 寫入目的檔
-    f = open(sys.argv[1].split(".")[0] + ".vm", "w+")
+    f = open(sys.argv[1].split(".")[0] + ".vm", "w+", encoding = "utf-8")
     STMTS()
     f.write("HALT\n")
     f.seek(0)

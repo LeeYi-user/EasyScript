@@ -1,5 +1,5 @@
 DEF, (fib)
-STORE, pc
+STORE, ra
 STORE, n
 (L0)
 LOAD, n
@@ -46,6 +46,7 @@ LOAD, n
 STORE, t12
 LOAD, t12
 RETURN
+PUSH, None
 END
 PUSH, 10
 STORE, t14
@@ -53,5 +54,9 @@ LOAD, t14
 CALL, fib
 STORE, t13
 LOAD, t13
+PRINT
+PUSH, " "
+PRINT
+PUSH, "\n"
 PRINT
 HALT
