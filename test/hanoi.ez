@@ -1,6 +1,6 @@
 function hanoi(n, A, B, C)
 {
-    while (n < 2)
+    if (n == 1)
     {
         print(A, "->", C);
         return;

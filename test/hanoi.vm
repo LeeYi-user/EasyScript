@@ -7,11 +7,11 @@ STORE, n
 (L0)
 LOAD, n
 STORE, t0
-PUSH, 2
+PUSH, 1
 STORE, t1
 LOAD, t0
 LOAD, t1
-LT
+EQ
 STORE, t2
 LOAD, t2
 JZ, L1
@@ -37,7 +37,6 @@ PUSH, "\n"
 PRINT
 PUSH, None
 RETURN
-JMP, L0
 (L1)
 LOAD, n
 STORE, t6

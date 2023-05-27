@@ -18,9 +18,10 @@ F = '(' E ')' | NUMBER | NONE | BOOL | STRING | 'input' '(' E ')' | NAME | NAME 
 
 # 包含 while 的語法
 """
-STMT = ASSIGN | WHILE | BLOCK | PRINT | FUNCTION | RETURN | CALL
+STMT = ASSIGN | WHILE | IF | BLOCK | PRINT | FUNCTION | RETURN | CALL
 ASSIGN = NAME '=' E ';'
 WHILE = 'while' '(' E ')' STMT
+IF = 'if' '(' E ')' STMT
 BLOCK = '{' STMT* '}'
 PRINT = 'print' '(' C ')' ';'
 FUNCTION = 'function' NAME '(' D? ')' BLOCK
@@ -88,7 +89,8 @@ OP = {
     "*": "MUL",
     "/": "DIV",
     "<": "LT",
-    ">": "GT"
+    ">": "GT",
+    "==": "EQ"
 }
 
 def C(flag):
@@ -173,6 +175,19 @@ def WHILE():
     f.write(f"JMP, L{whileBegin}\n")
     f.write(f"(L{whileEnd})\n")
 
+def IF():
+    ifBegin = nextLabel()
+    ifEnd = nextLabel()
+    f.write(f"(L{ifBegin})\n")
+    skip("if")
+    skip("(")
+    e = E()
+    skip(")")
+    f.write(f"LOAD, t{e}\n")
+    f.write(f"JZ, L{ifEnd}\n")
+    STMT()
+    f.write(f"(L{ifEnd})\n")
+
 def BLOCK():
     skip("{")
     STMTS()
@@ -215,6 +230,8 @@ def CALL(name):
 def STMT():
     if isNext("while"):
         WHILE()
+    elif isNext("if"):
+        IF()
     elif isNext("{"):
         BLOCK()
     elif isNext("print"):
@@ -242,9 +259,21 @@ if __name__ == "__main__":
         print("請提供一個參數")
         sys.exit()
 
+    # 設定詞位
+    lexeme = [
+        # 運算子
+        "\+", "\-", "\*", "\/", "\<", "\>", "\=\=", "\=",
+        # 標點符號
+        "\,", "\;", "\(", "\)", "\{", "\}",
+        # 浮點數、字串
+        "\d+\.\d+", "\'.+?\'", "\".+?\"",
+        # 其他
+        "\w+"
+    ]
+
     # 讀取來源檔
     f = open(sys.argv[1], "r", encoding = "utf-8")
-    tokens = re.findall("\d+\.\d+|\'.+?\'|\".+?\"|\w+|[\+\-\*\/\<\>\=\,\(\)\{\}\;]", "".join(f.readlines()))
+    tokens = re.findall("|".join(lexeme), "".join(f.readlines()))
     f.close()
 
     # 寫入目的檔

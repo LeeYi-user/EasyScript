@@ -23,34 +23,67 @@ class Value:
         self.data = data
 
     def __add__(self, other):
-        assert isinstance(other, Value)
+        other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data + other.data)
         return out
 
-    def __sub__(self, other):
-        assert isinstance(other, Value)
-        out = Value(self.data - other.data)
-        return out
-
     def __mul__(self, other):
-        assert isinstance(other, Value)
+        other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data * other.data)
         return out
 
-    def __truediv__(self, other):
-        assert isinstance(other, Value)
-        out = Value(self.data / other.data)
+    def __pow__(self, other):
+        assert isinstance(other, (int, float)), "only supporting int/float powers for now"
+        out = Value(self.data**other)
         return out
 
     def __lt__(self, other):
-        assert isinstance(other, Value)
-        out = Value(self.data < other.data)
+        if isinstance(other, Value):
+            out = Value(self.data < other.data)
+        else:
+            out = (self.data < other)
+
         return out
 
     def __gt__(self, other):
-        assert isinstance(other, Value)
-        out = Value(self.data > other.data)
+        if isinstance(other, Value):
+            out = Value(self.data > other.data)
+        else:
+            out = (self.data > other)
+
         return out
+
+    def __eq__(self, other):
+        if isinstance(other, Value):
+            out = Value(self.data == other.data)
+        else:
+            out = (self.data == other)
+
+        return out
+
+    def __neg__(self):
+        return self * -1
+
+    def __radd__(self, other):
+        return self + other
+
+    def __sub__(self, other):
+        return self + (-other)
+
+    def __rsub__(self, other):
+        return other + (-self)
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __truediv__(self, other):
+        return self * other**-1
+
+    def __rtruediv__(self, other):
+        return other * self**-1
+
+    def __repr__(self):
+        return str(self.data)
 
 # 虛擬機
 class StackVM:
@@ -61,7 +94,8 @@ class StackVM:
 
     def load(self, f):
         for i in f:
-            i = re.findall("\(.+?\)|\'.+?\'|\".+?\"|\w+", i)
+            lexeme = ["\(.+?\)", "\'.+?\'", "\".+?\"", "\w+"]
+            i = re.findall("|".join(lexeme), i)
 
             for j in i:
                 if len(self.code) > 0 and self.code[-1] == "PUSH":
@@ -125,6 +159,10 @@ class StackVM:
                 b = self.stack.pop()
                 a = self.stack.pop()
                 self.stack.append(a > b)
+            elif op == "EQ":
+                b = self.stack.pop()
+                a = self.stack.pop()
+                self.stack.append(a == b)
 
             # 跳躍指令
             elif op[0] == "(" and op[-1] == ")":
