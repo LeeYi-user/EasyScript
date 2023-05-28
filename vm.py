@@ -3,43 +3,81 @@ import re, sys
 
 # 變數
 class Value:
-    def __init__(self, data, flag = None):
-        if flag is not None:
+    def __init__(self, data, type = None, push = False):
+        if type is None:
+            data = str(data)
+
             try:
                 data = int(data)
+                type = "number"
             except:
                 try:
                     data = float(data)
+                    type = "number"
                 except:
                     if data == "None":
                         data = None
+                        type = "object"
                     elif data == "True":
                         data = True
+                        type = "number"
                     elif data == "False":
                         data = False
-                    elif flag == "PUSH":
+                        type = "number"
+                    elif push:
                         data = data.strip(data[0])
+                        type = "string"
+                    else:
+                        type = "string"
 
         self.data = data
+        self.type = type
 
     def __add__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data + other.data)
+        self = Value(self.data)
+        other = Value(other.data) if isinstance(other, Value) else Value(other)
+
+        if self.type != "object" and other.type != "object":
+            if self.type == other.type:
+                out = Value(self.data + other.data, self.type)
+            else:
+                out = Value(str(self.data) + str(other.data), "string")
+        else:
+            out = Value(None, "object")
+
         return out
 
     def __mul__(self, other):
-        other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data * other.data)
+        self = Value(self.data)
+        other = Value(other.data) if isinstance(other, Value) else Value(other)
+
+        if self.type == other.type == "number":
+            out = Value(self.data * other.data, "number")
+        else:
+            out = Value(None, "object")
+
         return out
 
     def __pow__(self, other):
+        self = Value(self.data)
         assert isinstance(other, (int, float)), "only supporting int/float powers for now"
-        out = Value(self.data**other)
+
+        if self.type == "number":
+            out = Value(self.data**other, "number")
+        else:
+            out = Value(None, "object")
+
         return out
 
     def __lt__(self, other):
         if isinstance(other, Value):
-            out = Value(self.data < other.data)
+            self = Value(self.data)
+            other = Value(other.data)
+
+            if self.type != "object" and self.type == other.type:
+                out = Value(self.data < other.data, "number")
+            else:
+                out = Value(False, "number")
         else:
             out = (self.data < other)
 
@@ -47,7 +85,13 @@ class Value:
 
     def __gt__(self, other):
         if isinstance(other, Value):
-            out = Value(self.data > other.data)
+            self = Value(self.data)
+            other = Value(other.data)
+
+            if self.type != "object" and self.type == other.type:
+                out = Value(self.data > other.data, "number")
+            else:
+                out = Value(False, "number")
         else:
             out = (self.data > other)
 
@@ -55,7 +99,13 @@ class Value:
 
     def __eq__(self, other):
         if isinstance(other, Value):
-            out = Value(self.data == other.data)
+            self = Value(self.data)
+            other = Value(other.data)
+
+            if self.type == other.type:
+                out = Value(self.data == other.data, "number")
+            else:
+                out = Value(False, "number")
         else:
             out = (self.data == other)
 
@@ -99,7 +149,7 @@ class StackVM:
 
             for j in i:
                 if len(self.code) > 0 and self.code[-1] == "PUSH":
-                    j = Value(j, "PUSH")
+                    j = Value(j, push = True)
 
                 self.code.append(j)
 
@@ -130,7 +180,7 @@ class StackVM:
                 self.stack.append(value)
             elif op == "INPUT":
                 data = input(self.stack.pop().data)
-                self.stack.append(Value(data, "INPUT"))
+                self.stack.append(Value(data))
             elif op == "PRINT":
                 print(str(self.stack.pop().data).replace(r"\n", "\n"), end = "")
 
