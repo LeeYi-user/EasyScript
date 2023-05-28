@@ -34,8 +34,7 @@ class Value:
         self.type = type
 
     def __add__(self, other):
-        self = Value(self.data)
-        other = Value(other.data) if isinstance(other, Value) else Value(other)
+        other = other if isinstance(other, Value) else Value(other)
 
         if self.type != "object" and other.type != "object":
             if self.type == other.type:
@@ -144,7 +143,7 @@ class StackVM:
 
     def load(self, f):
         for i in f:
-            lexeme = ["\(.+?\)", "\'.+?\'", "\".+?\"", "\w+"]
+            lexeme = ["\(.+?\)", "\d+\.\d+", "\'.+?\'", "\".+?\"", "\w+"]
             i = re.findall("|".join(lexeme), i)
 
             for j in i:
